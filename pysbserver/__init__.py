@@ -19,12 +19,12 @@ class Engine(object):
         Client.Connected.connect(self.room_manager.on_client_connect)
         
         if port == "*":
-            use_port = enet.ENET_PORT_ANY #@UndefinedVariable
+            use_port = 0
         else:
             use_port = int(port)
             
         if host == "*":
-            use_host = enet.ENET_HOST_ANY #@UndefinedVariable
+            use_host = None
         else:
             use_host = host
             
