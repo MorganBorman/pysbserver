@@ -1,0 +1,7 @@
+#!/usr/bin/env python
+
+import pysbserver
+
+if __name__ == "__main__":
+    engine = pysbserver.Engine(host="localhost", port=28785, maxclients=5, maxdown=0, maxup=0)
+    engine.run()
