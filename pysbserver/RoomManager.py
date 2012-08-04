@@ -12,7 +12,7 @@ class RoomManager(object):
     def __init__(self):
         pass
     
-    def on_client_connect(self, client):
+    def on_client_connected(self, client):
         #TODO: consider logic here to use the pwdhash to select a room to join
         self.lobby.add_client(client)
         

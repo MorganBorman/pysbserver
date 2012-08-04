@@ -2,8 +2,15 @@ import struct
 import collections
 
 class CubeDataStream(object):
-    def __init__(self, strdata=""):
-        self.data = bytearray(map(ord, strdata))
+    def __init__(self, data=""):
+        if isinstance(data, CubeDataStream):
+            self.data = bytearray(data.data)
+        elif isinstance(data, bytearray):
+            self.data = bytearray(data)
+        else:
+            self.data = bytearray(map(ord, data))
+        
+        
         
     @staticmethod
     def pack_format(fmt, data):

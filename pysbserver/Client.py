@@ -7,9 +7,12 @@ import traceback, time
 from Signals import SignalObject, Signal
 
 from CubeDataStream import CubeDataStream
-from SauerbratenStreamSpecification import sauerbraten_stream_spec
+from ServerReadStreamSpec import sauerbraten_stream_spec
+
+import ServerWriteHelper as swh #@UnresolvedImport
 
 from Constants import * #@UnusedWildImport
+import contextlib
 
 class PingBuffer(object):
     BUFFERSIZE = 15
@@ -145,9 +148,12 @@ class ClientBase(SignalObject):
     jumppad = Signal
     teleport = Signal
     pickup = Signal
-    itemlist = Signal
+    suicide = Signal
     shoot = Signal
     explode = Signal
+    replenishammo = Signal
+    takeflag = Signal
+    trydropflag = Signal
     
     def __init__(self):
         SignalObject.__init__(self)
@@ -161,10 +167,7 @@ class ClientBase(SignalObject):
             self.state.position = None
             
         if not self.state.messages.empty():
-            msg_cds.putint(message_types.N_CLIENT)
-            msg_cds.putint(self.cn)
-            msg_cds.putuint(len(self.state.messages.data))
-            msg_cds.write(self.state.messages.data)
+            swh.put_clientdata(msg_cds, self, self.state.messages)
             self.state.messages.clear()
     
 class AiClient(ClientBase):
@@ -192,19 +195,23 @@ class InvalidClientNumberReference(Exception):
         Exception.__init__(self, value)
 
 class Client(ClientBase):
-    connected = False
+    isconnected = False
     peer = None
     isai = False
     disc = False
     
     # class signals
-    Connected = Signal()
+    connected = Signal()
     
     # instance signals
-    Disconnected = Signal
+    disconnected = Signal
     ping = Signal
     mapvote = Signal
-    suicide = Signal
+    mapcrc = Signal
+    itemlist = Signal
+    flaglist = Signal
+    baselist = Signal
+    
     trysetteam = Signal
     setspectator = Signal
     
@@ -218,7 +225,8 @@ class Client(ClientBase):
         self.bots = {}
         self.ping_buffer = PingBuffer()
         
-        self.send_server_info(False, "Test Server")
+        with self.sendbuffer(1, True) as cds:
+            swh.put_servinfo(cds, self, haspwd=False, description="Test Server")
         
     def getclient(self, cn):
         if cn == self.cn or cn == -1:
@@ -245,6 +253,12 @@ class Client(ClientBase):
             print("%s: Error sending packet!" % self.peer.address)
             self.on_disconnect()
             
+    @contextlib.contextmanager
+    def sendbuffer(self, channel, reliable):
+        cds = CubeDataStream()
+        yield cds
+        self.send(channel, cds, reliable)
+            
     def sendf(self, channel, fmt, data_items, reliable=False):
         fmt = list(fmt)
         
@@ -261,7 +275,7 @@ class Client(ClientBase):
         
     def on_disconnect(self):
         self.disc = True
-        self.Disconnected.emit(self)
+        self.disconnected.emit(self)
         self.peer.disconnect(disconnect_types.DISC_NONE)
         self.cn_pool.append(self.cn)
         self.cn_pool.sort()
@@ -283,21 +297,21 @@ class Client(ClientBase):
                 messages = sauerbraten_stream_spec.read(data, {'aiclientnum': -1})
                 
                 for message_type, message in messages:
-                    if (not self.connected) and message_type != "N_CONNECT":
+                    if (not self.isconnected) and message_type != "N_CONNECT":
                         self.peer.disconnect(disconnect_types.DISC_TAGT) #@UndefinedVariable
                         return
                     
-                    elif self.connected and message_type == "N_CONNECT":
+                    elif self.isconnected and message_type == "N_CONNECT":
                         self.peer.disconnect(disconnect_types.DISC_TAGT) #@UndefinedVariable
                         return
                     
                     elif message_type == "N_CONNECT":
-                        self.connected = True
+                        self.isconnected = True
                         self.name = filtertext(message['name'], False, MAXNAMELEN)
                         self.pwdhash = message['pwdhash']
                         self.playermodel = message['playermodel']
                         
-                        self.Connected.emit(self)
+                        self.connected.emit(self)
                         
                     elif message_type == "N_SWITCHNAME":
                         name = filtertext(message['name'], False, MAXNAMELEN)
@@ -306,8 +320,7 @@ class Client(ClientBase):
                             
                         if name != self.name:
                             self.name = name
-                            self.state.messages.putint(message_types.N_SWITCHNAME)
-                            self.state.messages.putstring(self.name)
+                            swh.put_switchname(self.state.messages, self.name)
                         
                     elif message_type == "N_SWITCHTEAM":
                         team = filtertext(message['team'], False, MAXTEAMLEN)
@@ -315,18 +328,16 @@ class Client(ClientBase):
                             self.trysetteam.emit(self, self.cn, self.team, team)
                             
                     elif message_type == "N_SPECTATOR":
-                        self.setspectator.emit(self, message['target_cn'], message['value'] != 0)
+                        self.setspectator.emit(self, message['target_cn'], bool(message['value']))
                         
                     elif message_type == "N_PING":
-                        self.sendf(1, 'ii', [message_types.N_PONG, message['cmillis']], False)
+                        with self.sendbuffer(1, False) as cds:
+                            swh.put_pong(cds, message['cmillis'])
                         
                     elif message_type == "N_CLIENTPING":
                         self.ping_buffer.add(message['ping'])
-                        
                         self.ping.emit(self)
-                        
-                        self.state.messages.putint(message_types.N_CLIENTPING)
-                        self.state.messages.putint(message['ping'])
+                        swh.put_clientping(self.state.messages, message['ping'])
                         
                     elif message_type == "N_MAPVOTE":
                         self.mapvote.emit(self, message['map_name'], message['mode_num'])
@@ -334,8 +345,17 @@ class Client(ClientBase):
                     elif message_type == "N_MAPCHANGE":
                         self.mapvote.emit(self, message['map_name'], message['mode_num'])
                         
+                    elif message_type == "N_MAPCRC":
+                        self.mapcrc.emit(self, message['mapcrc'])
+                        
                     elif message_type == "N_ITEMLIST":
                         self.itemlist.emit(self, message['items'])
+                        
+                    elif message_type == "N_BASES":
+                        self.baselist.emit(self, message['bases'])
+                        
+                    elif message_type == "N_INITFLAGS":
+                        self.flaglist.emit(self, message['flags'])
                         
                     elif message_type == "N_SPAWN":
                         client = self.getclient(message['aiclientnum'])
@@ -344,7 +364,7 @@ class Client(ClientBase):
                         client.lifesequence = message['lifesequence']
                         client.gunselect = message['gunselect']
                         
-                        client.state.messages.write(client.build_spawnstate())
+                        swh.put_spawn(client.state.messages, self)
                         
                     elif message_type == "N_TRYSPAWN":
                         self.send_spawn_state()
@@ -372,17 +392,24 @@ class Client(ClientBase):
                         
                     elif message_type == "N_GUNSELECT":
                         mcds = self.getclient(message['aiclientnum']).state.messages
-                        mcds.putint(message_types.N_GUNSELECT)
-                        mcds.putint(message['gunselect'])
+                        swh.put_gunselect(mcds, message['gunselect'])
                         self.state.gunselect = message['gunselect']
                         
                     elif message_type == "N_SOUND":
                         mcds = self.getclient(message['aiclientnum']).state.messages
-                        mcds.putint(message_types.N_SOUND)
-                        mcds.putint(message['sound'])
+                        swh.put_gunselect(mcds, message['sound'])
                         
                     elif message_type == "N_ITEMPICKUP":
                         self.pickup.emit(self.getclient(message['aiclientnum']), message['item_index'])
+                        
+                    elif message_type == "N_REPAMMO":
+                        self.replenishammo.emit(self.getclient(message['aiclientnum']))
+                        
+                    elif message_type == "N_TAKEFLAG":
+                        self.takeflag.emit(self.getclient(message['aiclientnum']), message['flag'], message['version'])
+                        
+                    elif message_type == "N_TRYDROPFLAG":
+                        self.trydropflag.emit(self.getclient(message['aiclientnum']))
                         
                     else:
                         print message_type, message
@@ -393,45 +420,9 @@ class Client(ClientBase):
             return
         except:
             traceback.print_exc()
-            
-    def send_server_info(self, haspwd, description):
-        self.sendf(1, 'iiiiis', 
-                   [message_types.N_SERVINFO, self.cn, PROTOCOL_VERSION, 
-                    id(self), 1 if haspwd else 0 , description], True)
-        
-    def build_spawnstate(self):
-        data_items = [
-                        message_types.N_SPAWN,
-                        self.state.lifesequence,
-                        self.state.health,
-                        self.state.maxhealth,
-                        self.state.armour,
-                        self.state.armourtype,
-                        self.state.gunselect,
-                        weapon_types.GUN_PISTOL-weapon_types.GUN_SG+1
-                    ]
-        
-        data_items.extend(self.state.ammo[weapon_types.GUN_SG:weapon_types.GUN_PISTOL+1])
-        
-        fmt = 'i'*len(data_items)
-        
-        return CubeDataStream.pack_format(fmt, data_items)
         
     def send_spawn_state(self):
         self.state.respawn()
         
-        data_items = [
-                        message_types.N_SPAWNSTATE, 
-                        self.cn, 
-                        self.state.lifesequence,
-                        self.state.health,
-                        self.state.maxhealth,
-                        self.state.armour,
-                        self.state.armourtype,
-                        self.state.gunselect,
-                        weapon_types.GUN_PISTOL-weapon_types.GUN_SG+1
-                    ]
-        
-        data_items.extend(self.state.ammo[weapon_types.GUN_SG:weapon_types.GUN_PISTOL+1])
-        
-        self.sendf(1, 'i'*len(data_items), data_items, True)
+        with self.sendbuffer(1, True) as cds:
+            swh.put_spawnstate(cds, self)

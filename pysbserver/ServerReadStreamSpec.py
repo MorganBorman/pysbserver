@@ -29,7 +29,6 @@ mt = MessageType("N_TELEPORT",
         Field(name="teledest", type="int"))
 sauerbraten_stream_spec.add_message_type(message_types.N_TELEPORT, mt)
 
-
 mt = MessageType("N_JUMPPAD", 
         Field(name="clientnum", type="int"),
         Field(name="jumppad", type="int"))
@@ -41,8 +40,6 @@ sauerbraten_stream_spec.add_message_type(message_types.N_CHECKMAPS, mt)
 mt = MessageType("N_EDITMODE",
         Field(name="value", type="int"))
 sauerbraten_stream_spec.add_message_type(message_types.N_EDITMODE, mt)
-                                            
-
 
 mt = MessageType("N_PING",
         Field(name="cmillis", type="int"))
@@ -66,7 +63,7 @@ mt = MessageType("N_SHOOT",
         
         IteratedFieldCollection(
                 name="hits",
-                count_field=Field(type="int"),
+                count=Field(type="int"),
                 field_collection=FieldCollection(
                                 Field(name="target", type="int"),
                                 Field(name="lifesequence", type="int"),
@@ -85,7 +82,7 @@ mt = MessageType("N_EXPLODE",
         
         IteratedFieldCollection(
                 name="hits",
-                count_field=Field(type="int"),
+                count=Field(type="int"),
                 field_collection=FieldCollection(
                                 Field(name="target", type="int"),
                                 Field(name="lifesequence", type="int"),
@@ -115,8 +112,39 @@ sauerbraten_stream_spec.add_message_type(message_types.N_CLIENTPING, mt)
 
 mt = MessageType("N_MAPCRC",
         Field(name="map_name", type="string"),
-        Field(name="map_crc", type="int"))
+        Field(name="mapcrc", type="int"))
 sauerbraten_stream_spec.add_message_type(message_types.N_MAPCRC, mt)
+
+mt = MessageType("N_INITFLAGS",
+                IteratedFieldCollection(
+                name="flags",
+                count=Field(type="int"),
+                field_collection=FieldCollection(Field(name="team", type="int"),
+                                                 Field(name="x", type="int"),
+                                                 Field(name="y", type="int"),
+                                                 Field(name="z", type="int"))))
+sauerbraten_stream_spec.add_message_type(message_types.N_INITFLAGS, mt)
+
+mt = MessageType("N_TRYDROPFLAG")
+sauerbraten_stream_spec.add_message_type(message_types.N_TRYDROPFLAG, mt)
+
+mt = MessageType("N_TAKEFLAG",
+        Field(name="flag", type="int"),
+        Field(name="version", type="int"))
+sauerbraten_stream_spec.add_message_type(message_types.N_TAKEFLAG, mt)
+
+mt = MessageType("N_BASES",
+                IteratedFieldCollection(
+                name="bases",
+                count=Field(type="int"),
+                field_collection=FieldCollection(Field(name="ammotype", type="int"),
+                                                 Field(name="x", type="int"),
+                                                 Field(name="y", type="int"),
+                                                 Field(name="z", type="int"))))
+sauerbraten_stream_spec.add_message_type(message_types.N_BASES, mt)
+
+mt = MessageType("N_REPAMMO")
+sauerbraten_stream_spec.add_message_type(message_types.N_REPAMMO, mt)
 
 mt = MessageType("N_ITEMLIST",
         TerminatedFieldCollection(name="items",

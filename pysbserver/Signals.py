@@ -19,18 +19,24 @@ class Signal(object):
             slot(*args, **kwargs)
 
 class SignalObject(object):
+    __class_signals = {}
+    __instance_signals = {}
+    
     def __init__(self):
         "Initialize each attribute signal."
         for key in dir(self):
             val = self.__getattribute__(key)
             if type(val) == type and issubclass(val, Signal):
-                self.__setattr__(key, Signal())
+                sig = Signal()
+                self.__setattr__(key, sig)
+                self.__instance_signals[key] = sig
+            elif isinstance(val, Signal):
+                self.__class_signals[key] = val
                 
-    def connect_all_signals(self, object_with_slots):
-        for key in dir(self):
-            val = self.__getattribute__(key)
+    def connect_all_instance_signals(self, object_with_slots, prefix="on_"):
+        for key, val in self.__instance_signals.items():
             if isinstance(val, Signal):
-                expected_slot_name = "on_"+key
+                expected_slot_name = prefix+key
                 
                 try:
                     slot = object_with_slots.__getattribute__(expected_slot_name)
@@ -38,18 +44,17 @@ class SignalObject(object):
                 except AttributeError:
                     print "Could not connect signal '%s' expected slot '%s' not found." %(key, expected_slot_name)
                     
-    def disconnect_all_signals(self, object_with_slots):
-        for key in dir(self):
-            val = self.__getattribute__(key)
+    def disconnect_all_instance_signals(self, object_with_slots, prefix="on_"):
+        for key, val in self.__instance_signals.items():
             if isinstance(val, Signal):
-                expected_slot_name = "on_"+key
+                expected_slot_name = prefix+key
                 
                 try:
                     slot = object_with_slots.__getattribute__(expected_slot_name)
                     val.disconnect(slot)
                 except AttributeError:
                     pass
-                    #print "Could not connect signal '' expected slot '' not found." %(key, expected_slot_name)
+                    #print "Could not disconnect signal '' expected slot '' not found." %(key, expected_slot_name)
         
 import unittest
 

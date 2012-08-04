@@ -16,7 +16,7 @@ class Engine(object):
     def __init__(self, host, port, maxclients, maxdown, maxup):
         
         self.room_manager = RoomManager()
-        Client.Connected.connect(self.room_manager.on_client_connect)
+        Client.connected.connect(self.room_manager.on_client_connected)
         
         if port == "*":
             use_port = 0
