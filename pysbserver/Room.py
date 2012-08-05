@@ -8,12 +8,15 @@ from Vector import vec #@UnresolvedImport
 
 from Item import Item #@UnresolvedImport
 
+from gamemodes import gamemodes #@UnresolvedImport
+
 class Room(object):
     "A room holds the current match state for a collection of engine clients."
     name = ""
     clients = []
     
     mode_num = 0
+    gamemode = gamemodes[mode_num]()
     map_name = None
     match_end_time = None
     hasitems = False
@@ -47,6 +50,8 @@ class Room(object):
         
         map(lambda i: i.update, self.items)
         
+        self.gamemode.update(self)
+        
         if self.intermission_end_time is not None:
             if time.time() > self.intermission_end_time:
                 
@@ -54,7 +59,7 @@ class Room(object):
                     swh.put_mapreload(cds)
                     
                 self.intermission_end_time = None
-        elif self.match_end_time is not None:
+        elif self.match_end_time is not None and self.gamemode.timed:
             if time.time() > self.match_end_time:
                 
                 with self.broadcastbuffer(1, True) as cds:
@@ -138,6 +143,8 @@ class Room(object):
             
             self.clients[client.cn] = client
             
+            self.gamemode.on_client_connected(self, client)
+            
             # Connect up all the client signals
             client.connect_all_instance_signals(self, "on_client_")
             
@@ -148,10 +155,10 @@ class Room(object):
                 if self.map_name != None:
                     swh.put_mapchange(cds, self.map_name, self.mode_num, self.hasitems)
                     
-                    if self.match_end_time is not None:
+                    if self.gamemode.timed and self.match_end_time is not None:
                         swh.put_timeup(cds, self.timeleft)
                         
-                if self.hasitems:
+                if self.gamemode.hasitems and self.hasitems:
                     swh.put_itemlist(cds, self.items)
                 
                 swh.put_resume(cds, existing_clients)
@@ -163,7 +170,7 @@ class Room(object):
                 swh.put_initclients(cds, [client])
             
             if len(existing_clients) > 0:
-                client.send_spawn_state()
+                client.send_spawn_state(self.gamemode)
             
         except:
             traceback.print_exc()
@@ -179,6 +186,11 @@ class Room(object):
             swh.put_timeup(cds, self.timeleft)
             
     def change_map_mode(self, map_name, mode_num):
+        if not mode_num in gamemodes.keys():
+            return
+        
+        self.gamemode = gamemodes[mode_num]()
+        
         self.hasitems = False
         self.items = []
         
@@ -188,15 +200,17 @@ class Room(object):
             swh.put_mapchange(cds, self.map_name, self.mode_num, self.hasitems)
         
         for client in self.clients.values():
-            client.send_spawn_state()
+            client.send_spawn_state(self.gamemode)
         
-        self.timeleft = MATCHLEN
+        if self.gamemode.timed:
+            self.timeleft = self.gamemode.timeout
         
     def on_client_disconnected(self, client):
         if client.cn in self.clients.keys():
             del self.clients[client.cn]
             with self.broadcastbuffer(1, True) as cds:
                 swh.put_cdis(cds, client)
+            self.gamemode.on_client_disconnected(self, client)
                 
     def on_client_ping(self, client):
         pass

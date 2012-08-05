@@ -63,16 +63,14 @@ class ClientState(object):
     def spectator(self):
         return self.state == client_states.CS_SPECTATOR
         
-    def respawn(self):
+    def respawn(self, gamemode):
         self.lifesequence = (self.lifesequence + 1)&0x7F
         self.quadexpiry = -1
-        self.health = self.maxhealth
-        self.armour = 0
-        self.armourtype = armor_types.A_BLUE
-        self.gunselect = weapon_types.GUN_PISTOL
-        self.ammo = [0 for n in range(weapon_types.NUMGUNS)] #@UnusedVariable
-        
-        self.ammo[weapon_types.GUN_PISTOL] = 40
+        self.health = gamemode.spawnhealth
+        self.armour = gamemode.spawnarmour
+        self.armourtype = gamemode.spawnarmourtype
+        self.gunselect = gamemode.spawngunselect
+        self.ammo = gamemode.spawnammo
         
         self.position = None
         
@@ -421,8 +419,8 @@ class Client(ClientBase):
         except:
             traceback.print_exc()
         
-    def send_spawn_state(self):
-        self.state.respawn()
+    def send_spawn_state(self, gamemode):
+        self.state.respawn(gamemode)
         
         with self.sendbuffer(1, True) as cds:
             swh.put_spawnstate(cds, self)
