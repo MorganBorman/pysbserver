@@ -46,27 +46,31 @@ class Room(object):
         return self.map_name != None
         
     def update_room(self):
-        if len(self.clients) <= 0: return
-        
-        map(lambda i: i.update, self.items)
-        
-        self.gamemode.update(self)
-        
-        if self.intermission_end_time is not None:
-            if time.time() > self.intermission_end_time:
-                
-                with self.broadcastbuffer(1, True) as cds:
-                    swh.put_mapreload(cds)
+        try:
+            if len(self.clients) <= 0: return
+            
+            map(lambda i: i.update(self), self.items)
+            
+            self.gamemode.update(self)
+            
+            if self.intermission_end_time is not None:
+                if time.time() > self.intermission_end_time:
                     
-                self.intermission_end_time = None
-        elif self.match_end_time is not None and self.gamemode.timed:
-            if time.time() > self.match_end_time:
-                
-                with self.broadcastbuffer(1, True) as cds:
-                    swh.put_timeup(cds, 0)
+                    with self.broadcastbuffer(1, True) as cds:
+                        swh.put_mapreload(cds)
+                        
+                    self.intermission_end_time = None
+            elif self.match_end_time is not None and self.gamemode.timed:
+                if time.time() > self.match_end_time:
                     
-                self.match_end_time = None
-                self.intermission_end_time = time.time() + INTERMISSIONLEN
+                    with self.broadcastbuffer(1, True) as cds:
+                        swh.put_timeup(cds, 0)
+                        
+                    self.match_end_time = None
+                    self.intermission_end_time = time.time() + INTERMISSIONLEN
+                    
+        except:
+            traceback.print_exc()
     
     def sendpackets(self, force=False):
         if len(self.clients) == 0:
