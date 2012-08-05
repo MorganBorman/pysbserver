@@ -23,7 +23,7 @@ def put_mapreload(data_stream):
     
 def put_timeup(data_stream, timeleft):
     data_stream.putint(message_types.N_TIMEUP)
-    data_stream.putint(int(timeleft))
+    data_stream.putint(timeleft)
     
 def build_spectator(data_stream, client, value):
     data_stream.putint(message_types.N_SPECTATOR)
@@ -94,6 +94,7 @@ def put_itemspawn(data_stream, item):
     data_stream.putint(item.index)
     
 def put_itemlist(data_stream, items):
+    data_stream.putint(message_types.N_ITEMLIST)
     for item in items:
         if item.spawned:
             data_stream.putint(item.index)
@@ -107,7 +108,7 @@ def put_cdis(data_stream, client):
 def put_died(data_stream, client, killer):
     data_stream.putint(message_types.N_DIED)
     data_stream.putint(client.cn)
-    data_stream.putint(client.cn)
+    data_stream.putint(killer.cn)
     data_stream.putint(client.state.frags)
     
 def put_jumppad(data_stream, client, jumppad):
