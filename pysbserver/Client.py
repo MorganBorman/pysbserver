@@ -142,6 +142,7 @@ class ClientBase(SignalObject):
     
     cn_pool = []
     
+    tryspawn = Signal
     spawn = Signal
     jumppad = Signal
     teleport = Signal
@@ -365,7 +366,7 @@ class Client(ClientBase):
                         swh.put_spawn(client.state.messages, self)
                         
                     elif message_type == "N_TRYSPAWN":
-                        self.send_spawn_state()
+                        self.tryspawn.emit(self.getclient(message['aiclientnum']))
                         
                     elif message_type == "N_SHOOT":
                         message['client'] = self.getclient(message['aiclientnum'])

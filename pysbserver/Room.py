@@ -227,7 +227,7 @@ class Room(object):
         client.state.state = client_states.CS_DEAD
         
     def on_client_tryspawn(self, client):
-        pass
+        client.send_spawn_state(self.gamemode)
     
     def on_client_spawn(self, client):
         pass
