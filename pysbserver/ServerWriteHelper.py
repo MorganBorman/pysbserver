@@ -12,6 +12,20 @@ def put_welcome(data_stream, hasmap):
     data_stream.putint(message_types.N_WELCOME)
     data_stream.putint(hasmap)
     
+def put_mastermode(data_stream, mastermode):
+    data_stream.putint(message_types.N_MASTERMODE)
+    data_stream.putint(mastermode)
+    
+def put_currentmaster(data_stream, client, privilege, mastermode):
+    data_stream.putint(message_types.N_CURRENTMASTER)
+    data_stream.putint(client.cn)
+    data_stream.putint(privilege)
+    data_stream.putint(mastermode)
+    
+def put_servmsg(data_stream, message):
+    data_stream.putint(message_types.N_SERVMSG)
+    data_stream.putstring(message)
+    
 def put_mapchange(data_stream, map_name, mode_num, hasitems):
     data_stream.putint(message_types.N_MAPCHANGE)
     data_stream.putstring(map_name)
@@ -25,10 +39,20 @@ def put_timeup(data_stream, timeleft):
     data_stream.putint(message_types.N_TIMEUP)
     data_stream.putint(timeleft)
     
-def build_spectator(data_stream, client, value):
+def put_pausegame(data_stream, paused):
+    data_stream.putint(message_types.N_PAUSEGAME)
+    data_stream.putint(paused)
+    
+def put_spectator(data_stream, client, spectated):
     data_stream.putint(message_types.N_SPECTATOR)
     data_stream.putint(client.cn)
-    data_stream.putint(value)
+    data_stream.putint(spectated)
+    
+def put_setteam(data_stream, client, team, reason):
+    data_stream.putint(message_types.N_SETTEAM)
+    data_stream.putint(client.cn)
+    data_stream.putstring(team)
+    data_stream.putint(reason)
 
 def put_initai(data_stream, aiclient):
     data_stream.putint(message_types.N_INITAI)
@@ -101,6 +125,107 @@ def put_itemlist(data_stream, items):
             data_stream.putint(item.type)
     data_stream.putint(-1)
     
+def put_initflags(data_stream, teamscores, flags):
+    data_stream.putint(message_types.N_INITFLAGS)
+    for score in teamscores:
+        data_stream.putint(score)
+        
+    data_stream.putint(len(flags))
+    for flag in flags:
+        data_stream.putint(flag.version)
+        data_stream.putint(flag.spawn)
+        data_stream.putint(flag.owner.cn if flag.owner is not None else -1)
+        data_stream.putint(flag.invisible)
+        if flag.owner is None:
+            data_stream.putint(flag.dropped)
+            if flag.dropped:
+                data_stream.putint(flag.drop_location.x)
+                data_stream.putint(flag.drop_location.y)
+                data_stream.putint(flag.drop_location.z)
+                
+def put_dropflag(data_stream, client, flag):
+    data_stream.putint(message_types.N_DROPFLAG)
+    data_stream.putint(client.cn)
+    data_stream.putint(flag.id)
+    data_stream.putint(flag.version)
+    data_stream.putint(flag.drop_location.x)
+    data_stream.putint(flag.drop_location.y)
+    data_stream.putint(flag.drop_location.z)
+    
+def put_scoreflag(data_stream, client, relayflag, goalflag):
+    data_stream.putint(message_types.N_SCOREFLAG)
+    data_stream.putint(client.cn)
+    data_stream.putint(relayflag.id)
+    data_stream.putint(relayflag.version)
+    data_stream.putint(goalflag.id)
+    data_stream.putint(goalflag.version)
+    data_stream.putint(goalflag.spawn)
+    data_stream.putint(client.team.id)
+    data_stream.putint(client.team.score)
+    data_stream.putint(client.team.oflags)
+    
+def put_returnflag(data_stream, client, flag):
+    data_stream.putint(message_types.N_RETURNFLAG)
+    data_stream.putint(client.cn)
+    data_stream.putint(flag.id)
+    data_stream.putint(flag.version)
+    
+def put_takeflag(data_stream, client, flag):
+    data_stream.putint(message_types.N_TAKEFLAG)
+    data_stream.putint(client.cn)
+    data_stream.putint(flag.id)
+    data_stream.putint(flag.version)
+    
+def put_resetflag(data_stream, flag, team):
+    data_stream.putint(message_types.N_RESETFLAG)
+    data_stream.putint(flag.id)
+    data_stream.putint(flag.version)
+    data_stream.putint(flag.spawn)
+    data_stream.putint(team.id)
+    data_stream.putint(team.score)
+
+def put_invisflag(data_stream, flag):
+    data_stream.putint(message_types.N_INVISFLAG)
+    data_stream.putint(flag.id)
+    data_stream.putint(flag.invisible)
+    
+def put_bases(data_stream, bases):
+    data_stream.putint(message_types.N_BASES)
+    data_stream.putint(len(bases))
+    for base in bases:
+        data_stream.putint(base.ammotype)
+        data_stream.putstring(base.ownerteam.name if base.ownerteam is not None else "")
+        data_stream.putstring(base.enemyteam.name if base.enemyteam is not None else "")
+        data_stream.putint(base.converted)
+        data_stream.putint(base.ammocount)
+        
+def put_baseinfo(data_stream, base):
+    data_stream.putint(message_types.N_BASEINFO)
+    data_stream.putint(base.id)
+    data_stream.putstring(base.ownerteam.name if base.ownerteam is not None else "")
+    data_stream.putstring(base.enemyteam.name if base.enemyteam is not None else "")
+    data_stream.putint(base.converted)
+    data_stream.putint(base.ammocount)
+    
+def put_basescore(data_stream, base):
+    data_stream.putint(message_types.N_BASESCORE)
+    data_stream.putint(base.id)
+    data_stream.putstring(base.ownerteam.name)
+    data_stream.putint(base.ownerteam.score)
+    
+def put_repammo(data_stream, client, base):
+    data_stream.putint(message_types.N_REPAMMO)
+    data_stream.putint(client.cn)
+    data_stream.putint(base.ammotype)
+    
+def put_baseregen(data_stream, client, base):
+    data_stream.putint(message_types.N_BASEREGEN)
+    data_stream.putint(client.cn)
+    data_stream.putint(client.state.health)
+    data_stream.putint(client.state.armour)
+    data_stream.putint(base.ammotype)
+    data_stream.putint(client.state.ammo[base.ammotype])
+    
 def put_cdis(data_stream, client):
     data_stream.putint(message_types.N_CDIS)
     data_stream.putint(client.cn)
@@ -110,6 +235,10 @@ def put_died(data_stream, client, killer):
     data_stream.putint(client.cn)
     data_stream.putint(killer.cn)
     data_stream.putint(client.state.frags)
+    
+def put_forcedeath(data_stream, client):
+    data_stream.putint(message_types.N_FORCEDEATH)
+    data_stream.putint(client.cn)
     
 def put_jumppad(data_stream, client, jumppad):
     data_stream.putint(message_types.N_JUMPPAD)

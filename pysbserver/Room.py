@@ -68,7 +68,6 @@ class Room(object):
                         
                     self.match_end_time = None
                     self.intermission_end_time = time.time() + INTERMISSIONLEN
-                    
         except:
             traceback.print_exc()
     

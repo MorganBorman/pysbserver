@@ -198,7 +198,7 @@ sauerbraten_stream_spec.add_message_type(message_types.N_TAKEFLAG, mt)
 mt = MessageType("N_RESETFLAG",
         Field(name="flag", type="int"),
         Field(name="version", type="int"),
-        Field(name="spawnindex", type="int"),
+        Field(name="spawn", type="int"),
         Field(name="team", type="int"),
         Field(name="score", type="int"))
 sauerbraten_stream_spec.add_message_type(message_types.N_RESETFLAG, mt)
