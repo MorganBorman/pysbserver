@@ -165,7 +165,7 @@ class GameModeABC(object):
         pass
     
     @abstractmethod
-    def on_client_trysetteam(self, room, client, target_cn, oldteam, team):
+    def on_client_trysetteam(self, room, client, target_cn, oldteam, team_name):
         pass
     
     @abstractmethod

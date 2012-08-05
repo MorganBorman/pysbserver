@@ -66,6 +66,11 @@ class Item(object):
                 swh.put_announce(cds, self)
                 
             self.announced = True
+            
+    def extend(self, amount):
+        "Extends any active spawn times by the specified amount."
+        if not self.spawned:
+            self.spawntime += amount
         
     def pickup(self, room, client):
         if self.spawntime != -1: return

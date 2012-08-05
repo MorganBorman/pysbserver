@@ -68,7 +68,7 @@ def put_initclient(data_stream, client):
     data_stream.putint(message_types.N_INITCLIENT)
     data_stream.putint(client.cn)
     data_stream.putstring(client.name)
-    data_stream.putstring(client.team)
+    data_stream.putstring(client.team.name if client.team is not None else "")
     data_stream.putint(client.playermodel)
 
 def put_initclients(data_stream, clients):

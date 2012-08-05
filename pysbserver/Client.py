@@ -134,7 +134,7 @@ class ClientState(object):
 class ClientBase(SignalObject):
     cn = -1
     name = "unnamed"
-    team = "evil"
+    team = None
     state = None
     playermodel = 0
     ping_buffer = None
@@ -211,6 +211,7 @@ class Client(ClientBase):
     flaglist = Signal
     baselist = Signal
     
+    trypausegame = Signal
     trysetteam = Signal
     setspectator = Signal
     
@@ -322,9 +323,9 @@ class Client(ClientBase):
                             swh.put_switchname(self.state.messages, self.name)
                         
                     elif message_type == "N_SWITCHTEAM":
-                        team = filtertext(message['team'], False, MAXTEAMLEN)
-                        if team != self.team:
-                            self.trysetteam.emit(self, self.cn, self.team, team)
+                        team_name = filtertext(message['team'], False, MAXTEAMLEN)
+                        if self.team is not None and team_name != self.team.name:
+                            self.trysetteam.emit(self, self.cn, self.team, team_name)
                             
                     elif message_type == "N_SPECTATOR":
                         self.setspectator.emit(self, message['target_cn'], bool(message['value']))
@@ -409,6 +410,9 @@ class Client(ClientBase):
                         
                     elif message_type == "N_TRYDROPFLAG":
                         self.trydropflag.emit(self.getclient(message['aiclientnum']))
+                        
+                    elif message_type == "N_PAUSEGAME":
+                        self.trypausegame.emit(self, message['value'])
                         
                     else:
                         print message_type, message

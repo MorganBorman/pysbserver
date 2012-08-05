@@ -6,40 +6,48 @@ import contextlib
 
 from Vector import vec #@UnresolvedImport
 
+from Team import Team #@UnresolvedImport
+
 from Item import Item #@UnresolvedImport
+from Flag import Flag #@UnresolvedImport
+from Base import Base #@UnresolvedImport
 
 from gamemodes import gamemodes #@UnresolvedImport
 
 class Room(object):
     "A room holds the current match state for a collection of engine clients."
     name = ""
-    clients = []
+    clients = {}
+    teams = {}
     
     mode_num = 0
-    gamemode = gamemodes[mode_num]()
+    gamemode = None
     map_name = None
     match_end_time = None
-    hasitems = False
+    intermission_end_time = None
+    pause_start = None
     haspwd = False
-    pausedtime = None
-    
-    worldstates = []
     lastsend = None
     
-    items = {}
+    items = []
+    flags = []
+    bases = []
+    
+    hasitems = False
+    hasflags = False
+    hasbases = False
     
     def __init__(self, name):
-        self.clients = {}
         self.name = name
         
-        self.mode_num = 0
-        self.map_name = None
-        self.match_end_time = None
-        self.intermission_end_time = None
-        self.hasitems = False
-        self.haspwd = False
+        self.clients = {}
+        self.teams = {}
+        
+        self.gamemode = gamemodes[self.mode_num]()
         
         self.items = []
+        self.flags = []
+        self.bases = []
         
     @property
     def hasmap(self):
@@ -48,6 +56,8 @@ class Room(object):
     def update_room(self):
         try:
             if len(self.clients) <= 0: return
+            
+            if self.paused: return;
             
             map(lambda i: i.update(self), self.items)
             
@@ -187,6 +197,29 @@ class Room(object):
         self.match_end_time = time.time() + value
         with self.broadcastbuffer(1, True) as cds:
             swh.put_timeup(cds, self.timeleft)
+            
+    @property
+    def paused(self):
+        return self.pause_start is not None
+        
+    @paused.setter
+    def paused(self, value):
+        if self.paused == value: return
+        
+        with self.broadcastbuffer(1, True) as cds:
+            if value:
+                self.pause_start = time.time()
+            else:
+                extend = (time.time() - self.pause_start)
+                
+                map(lambda i: i.extend(extend), self.items)
+                
+                self.match_end_time += extend
+                self.pause_start = None
+                
+            swh.put_pausegame(cds, self.paused)
+            if not value:
+                swh.put_timeup(cds, self.timeleft)
             
     def change_map_mode(self, map_name, mode_num):
         if not mode_num in gamemodes.keys():
@@ -355,7 +388,10 @@ class Room(object):
                 target.state.state = client_states.CS_DEAD
                 
                 target.state.deaths += 1
-                client.state.frags += 1
+                if self.gamemode.hasteams and client.team == target.team:
+                    client.state.frags -= 1
+                else:
+                    client.state.frags += 1
                 
                 swh.put_died(cds, target, client)
     
@@ -382,7 +418,10 @@ class Room(object):
     def on_client_baselist(self, client, base_list):
         pass
             
-    def on_client_trysetteam(self, client, target_cn, oldteam, team):
+    def on_client_trypausegame(self, client, pause):
+        self.paused = pause
+            
+    def on_client_trysetteam(self, client, target_cn, oldteam, team_name):
         pass
     
     def on_client_setspectator(self, client, target_cn, value):

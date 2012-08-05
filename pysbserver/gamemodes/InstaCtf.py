@@ -108,7 +108,7 @@ class InstaCtf(GameModeABC):
     def on_client_baselist(self, room, client, base_list):
         return True
 
-    def on_client_trysetteam(self, room, client, target_cn, oldteam, team):
+    def on_client_trysetteam(self, room, client, target_cn, oldteam, team_name):
         return True
 
     def on_client_setspectator(self, room, client, target_cn, value):
